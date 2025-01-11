@@ -32,6 +32,9 @@ def process_spectrogram(img: Image):
 		arr_shifted = np.roll(arr, shift, axis=0)
 		return Image.fromarray(arr_shifted)
 
+	def flip_time_axis(img):
+		return img.transpose(Image.FLIP_LEFT_RIGHT)
+
 	# img = frequency_scroll(img)
 	spec_array = np.array(img.convert('L'))
 
