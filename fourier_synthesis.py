@@ -1,12 +1,16 @@
 import librosa
 import numpy as np
 import matplotlib.pyplot as plt
-from PIL import Image
+from PIL import Image, ImageDraw
 import soundfile as sf
 import tkinter as tk
 from tkinter import filedialog
 import simpleaudio as sa
 from matplotlib.widgets import Button, RadioButtons
+import random
+import time
+
+SOUND_DURATION_LIMIT_SECONDS = 5
 
 
 def save_phase(audio: np.array, phase_path: str):
@@ -16,13 +20,10 @@ def save_phase(audio: np.array, phase_path: str):
     print(f"Phase saved to {phase_path}")
 
 
-def create_spectrogram(audio: np.array, sr: int | float, spectrogram_path: str, n_mels=128, fmax=8000):
+def create_spectrogram(audio: np.array, sr: int, spectrogram_path: str, n_mels=128, fmax=8000):
     mel_spectrogram = librosa.feature.melspectrogram(y=audio, sr=sr, n_mels=n_mels, fmax=fmax)
     mel_db = librosa.power_to_db(mel_spectrogram, ref=np.max)
-
-    # Normalize to 0-255 for image saving
     mel_normalized = ((mel_db - mel_db.min()) / (mel_db.max() - mel_db.min()) * 255).astype(np.uint8)
-
     img = Image.fromarray(mel_normalized)
     img.save(spectrogram_path)
 
@@ -36,10 +37,24 @@ def process_spectrogram(img: Image, method: str):
     def flip_time_axis(img):
         return img.transpose(Image.FLIP_LEFT_RIGHT)
 
+    def cut_random_frequencies(img):
+        draw = ImageDraw.Draw(img)
+        img_width, img_height = img.size
+        rect_width = random.randint(80, img_width)
+        rect_height = random.randint(10, img_height)
+        top_left_x = random.randint(0, img_width - rect_width)
+        top_left_y = random.randint(0, img_height - rect_height)
+        bottom_right_x = top_left_x + rect_width
+        bottom_right_y = top_left_y + rect_height
+        draw.rectangle([top_left_x, top_left_y, bottom_right_x, bottom_right_y], fill=0)
+        return img
+
     if method == 'Frequency Scroll':
         img = frequency_scroll(img)
     elif method == 'Flip Time Axis':
         img = flip_time_axis(img)
+    elif method == 'Cut Random Frequencies':
+        img = cut_random_frequencies(img)
 
     spec_array = np.array(img.convert('L'))
     return spec_array
@@ -60,7 +75,7 @@ def plot_audio_and_buttons(original_audio_path, sr, original_spectrogram_path, p
 
     create_spectrogram(y, sr, original_spectrogram_path)
 
-    fig, axs = plt.subplots(4, 1, figsize=(10, 16), num="Fourier Synthesis")
+    fig, axs = plt.subplots(4, 1, figsize=(14, 14), num="Fourier Synthesis")
     plt.subplots_adjust(bottom=0.25)
 
     ax_original_waveform = axs[0]
@@ -86,7 +101,7 @@ def plot_audio_and_buttons(original_audio_path, sr, original_spectrogram_path, p
     btn_process = Button(ax_process_button, 'Process Audio')
 
     ax_radio = plt.axes([0.26, 0.05, 0.2, 0.075], facecolor=(0.95, 0.95, 0.95))
-    radio = RadioButtons(ax_radio, ('Frequency Scroll', 'Flip Time Axis'))
+    radio = RadioButtons(ax_radio, ('Frequency Scroll', 'Flip Time Axis', 'Cut Random Frequencies'))
     radio.set_active(0)
 
     ax_play_original_button = plt.axes([0.54, 0.05, 0.2, 0.075])
@@ -99,8 +114,6 @@ def plot_audio_and_buttons(original_audio_path, sr, original_spectrogram_path, p
 
     def process_audio(event):
         method = radio.value_selected
-
-        btn_process.label.set_text("Processing...")
 
         spectrogram_image = Image.open(original_spectrogram_path)
         edited_spec = process_spectrogram(spectrogram_image, method)
@@ -124,14 +137,14 @@ def plot_audio_and_buttons(original_audio_path, sr, original_spectrogram_path, p
         ax_reconstructed_spectrogram.axis('off')
 
         fig.canvas.draw_idle()
-        btn_process.label.set_text("Process Audio")
         btn_play.active = True
 
     def play_original_audio(event):
         print("Playing original audio...")
         wave_obj = sa.WaveObject.from_wave_file(original_audio_path)
         play_obj = wave_obj.play()
-        play_obj.wait_done()
+        time.sleep(SOUND_DURATION_LIMIT_SECONDS)
+        play_obj.stop()
 
     def play_audio(event):
         if btn_play.active:
@@ -147,7 +160,7 @@ def plot_audio_and_buttons(original_audio_path, sr, original_spectrogram_path, p
     plt.show()
 
 
-def main():
+if __name__ == "__main__":
     root = tk.Tk()
     root.withdraw()
     original_audio_path = filedialog.askopenfilename(title="Select an audio file", filetypes=[("WAV files", "*.wav")])
@@ -158,12 +171,8 @@ def main():
         processed_audio_path = 'reconstructed.wav'
         processed_spectrogram_path = 'reconstructed_spectrogram.png'
 
-        audio, sr = librosa.load(original_audio_path, duration=5.0)
+        audio, sr = librosa.load(original_audio_path, duration=SOUND_DURATION_LIMIT_SECONDS)
         save_phase(audio, phase_path)
 
         plot_audio_and_buttons(original_audio_path, sr, original_spectrogram_path, phase_path, processed_audio_path,
                                processed_spectrogram_path)
-
-
-if __name__ == "__main__":
-    main()
