@@ -5,6 +5,7 @@ from PIL import Image, ImageDraw
 import soundfile as sf
 import tkinter as tk
 from tkinter import filedialog
+import simpleaudio as sa
 from matplotlib.widgets import Button, RadioButtons
 import random
 import time
