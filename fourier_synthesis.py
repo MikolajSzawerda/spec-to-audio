@@ -123,7 +123,7 @@ def plot_audio_and_buttons(original_audio_path, sr, original_spectrogram_path, p
         phase = np.load(phase_path)
         synthesize_audio(edited_spec, phase, processed_audio_path, sr)
 
-        y_reconstructed, _ = librosa.load(processed_audio_path, sr=sr, duration=5.0)
+        y_reconstructed, _ = librosa.load(processed_audio_path, sr=sr, duration=SOUND_DURATION_LIMIT_SECONDS)
 
         ax_reconstructed_waveform.clear()
         ax_reconstructed_waveform.plot(y_reconstructed)
