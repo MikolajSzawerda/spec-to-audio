@@ -5,7 +5,8 @@ from PIL import Image, ImageDraw
 import soundfile as sf
 import tkinter as tk
 from tkinter import filedialog
-import simpleaudio as sa
+import sounddevice as sd
+# import simpleaudio as sa
 from matplotlib.widgets import Button, RadioButtons
 import random
 import time
@@ -141,17 +142,26 @@ def plot_audio_and_buttons(original_audio_path, sr, original_spectrogram_path, p
 
     def play_original_audio(event):
         print("Playing original audio...")
-        wave_obj = sa.WaveObject.from_wave_file(original_audio_path)
-        play_obj = wave_obj.play()
-        time.sleep(SOUND_DURATION_LIMIT_SECONDS)
-        play_obj.stop()
+        data, samplerate = sf.read(original_audio_path)
+
+        samples_to_play = int(SOUND_DURATION_LIMIT_SECONDS * samplerate)
+
+        short_data = data[:samples_to_play]
+
+        sd.play(short_data, samplerate)
+        sd.wait()
 
     def play_audio(event):
         if btn_play.active:
             print("Playing reconstructed audio...")
-            wave_obj = sa.WaveObject.from_wave_file(processed_audio_path)
-            play_obj = wave_obj.play()
-            play_obj.wait_done()
+            data, samplerate = sf.read(processed_audio_path)
+
+            samples_to_play = int(SOUND_DURATION_LIMIT_SECONDS * samplerate)
+
+            short_data = data[:samples_to_play]
+
+            sd.play(short_data, samplerate)
+            sd.wait()
 
     btn_process.on_clicked(process_audio)
     btn_play_original.on_clicked(play_original_audio)
