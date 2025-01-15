@@ -7,7 +7,7 @@ import tkinter as tk
 from tkinter import filedialog
 import sounddevice as sd
 # import simpleaudio as sa
-from matplotlib.widgets import Button, RadioButtons
+from matplotlib.widgets import Button, RadioButtons, Slider
 import random
 import time
 
@@ -29,8 +29,8 @@ def create_spectrogram(audio: np.array, sr: int, spectrogram_path: str, n_mels=1
     img.save(spectrogram_path)
 
 
-def process_spectrogram(img: Image, method: str):
-    def frequency_scroll(img, shift=10):
+def process_spectrogram(img: Image, method: str, shift: int | None = 10):
+    def frequency_scroll(img, shift=shift):
         arr = np.array(img)
         arr_shifted = np.roll(arr, shift, axis=0)
         return Image.fromarray(arr_shifted)
@@ -77,7 +77,7 @@ def plot_audio_and_buttons(original_audio_path, sr, original_spectrogram_path, p
     create_spectrogram(y, sr, original_spectrogram_path)
 
     fig, axs = plt.subplots(4, 1, figsize=(14, 14), num="Fourier Synthesis")
-    plt.subplots_adjust(bottom=0.25)
+    plt.subplots_adjust(bottom=0.35)
 
     ax_original_waveform = axs[0]
     ax_original_waveform.plot(y)
@@ -98,12 +98,16 @@ def plot_audio_and_buttons(original_audio_path, sr, original_spectrogram_path, p
     ax_reconstructed_spectrogram.set_title('Reconstructed Spectrogram')
     ax_reconstructed_spectrogram.axis('off')
 
-    ax_process_button = plt.axes([0.05, 0.05, 0.2, 0.075])
-    btn_process = Button(ax_process_button, 'Process Audio')
-
-    ax_radio = plt.axes([0.26, 0.05, 0.2, 0.075], facecolor=(0.95, 0.95, 0.95))
+    ax_radio = plt.axes([0.05, 0.15, 0.25, 0.06], facecolor=(0.95, 0.95, 0.95))
     radio = RadioButtons(ax_radio, ('Frequency Scroll', 'Flip Time Axis', 'Cut Random Frequencies'))
     radio.set_active(0)
+
+    ax_slider = plt.axes([0.35, 0.15, 0.5, 0.03], facecolor='lightgoldenrodyellow')
+    slider = Slider(ax_slider, 'Shift', valmin=1, valmax=100, valinit=10, valstep=1)
+    ax_slider.set_visible(True)  # Initially visible for "Frequency Scroll"
+
+    ax_process_button = plt.axes([0.05, 0.05, 0.2, 0.075])
+    btn_process = Button(ax_process_button, 'Process Audio')
 
     ax_play_original_button = plt.axes([0.54, 0.05, 0.2, 0.075])
     btn_play_original = Button(ax_play_original_button, 'Play Original Audio')
@@ -112,12 +116,16 @@ def plot_audio_and_buttons(original_audio_path, sr, original_spectrogram_path, p
     btn_play = Button(ax_play_button, 'Play Reconstructed Audio')
     btn_play.active = False
 
+    def toggle_slider(label):
+        ax_slider.set_visible(label == 'Frequency Scroll')
+        fig.canvas.draw_idle()
 
     def process_audio(event):
         method = radio.value_selected
+        shift_value = slider.val if method == 'Frequency Scroll' else None
 
         spectrogram_image = Image.open(original_spectrogram_path)
-        edited_spec = process_spectrogram(spectrogram_image, method)
+        edited_spec = process_spectrogram(spectrogram_image, method, shift=shift_value)
         processed_img = Image.fromarray(edited_spec)
         processed_img.save(processed_spectrogram_path)
 
@@ -163,11 +171,13 @@ def plot_audio_and_buttons(original_audio_path, sr, original_spectrogram_path, p
             sd.play(short_data, samplerate)
             sd.wait()
 
+    radio.on_clicked(toggle_slider)
     btn_process.on_clicked(process_audio)
     btn_play_original.on_clicked(play_original_audio)
     btn_play.on_clicked(play_audio)
 
     plt.show()
+
 
 
 if __name__ == "__main__":
