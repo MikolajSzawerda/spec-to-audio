@@ -10,6 +10,7 @@ from matplotlib.widgets import Button, RadioButtons, Slider
 import random
 
 SOUND_DURATION_LIMIT_SECONDS = 5
+TOP_DB = 80
 
 
 def save_phase(audio: np.array, phase_path: str):
@@ -21,7 +22,7 @@ def save_phase(audio: np.array, phase_path: str):
 
 def create_spectrogram(audio: np.array, sr: int, spectrogram_path: str, n_mels=128, fmax=8000):
     mel_spectrogram = librosa.feature.melspectrogram(y=audio, sr=sr, n_mels=n_mels, fmax=fmax)
-    mel_db = librosa.power_to_db(mel_spectrogram, ref=np.max)
+    mel_db = librosa.power_to_db(mel_spectrogram, ref=np.max, top_db=TOP_DB)
     mel_normalized = ((mel_db - mel_db.min()) / (mel_db.max() - mel_db.min()) * 255).astype(np.uint8)
     img = Image.fromarray(mel_normalized)
     img.save(spectrogram_path)
@@ -60,7 +61,7 @@ def process_spectrogram(img: Image, method: str, shift: int | None = 10, rect_pa
 
 
 def synthesize_audio(processed_spec: np.array, phase: np.array, output_audio_path, sr=22050):
-    spec_denorm = (processed_spec / 255.0) * 80 - 40
+    spec_denorm = (processed_spec / 255.0) * TOP_DB - TOP_DB / 2
     spec_power = librosa.db_to_power(spec_denorm)
     linear_spec = librosa.feature.inverse.mel_to_stft(spec_power, sr=sr)
     stft_reconstructed = linear_spec * np.exp(1j * phase)
